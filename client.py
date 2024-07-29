@@ -15,7 +15,7 @@ num_actions = 3  # jump, rotate left, rotate right
 Q_table = np.zeros((num_states, num_actions))
 
 # Action mapping
-actions = ["jump", "rotate left", "rotate right"]
+actions = ["jump", "left", "right"]
 
 # Function to convert state binary vector to integer index
 def state_to_index(state):
