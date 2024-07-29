@@ -27,7 +27,7 @@ def state_to_index(state):
 def handle_fall_off(state, reward):
     if reward == -1:
         platform = 0  # Reset to platform 0
-        direction = state[5:]  # Keep the same direction
+        direction = "00"  # Reset to facing North
         state = f"{platform:05b}" + direction
     return state
 
@@ -49,7 +49,7 @@ for episode in range(num_episodes):
             action_idx = np.argmax(Q_table[state_idx])  # Exploit
 
         action = actions[action_idx]
-        next_state, reward = cn.get_state_reward(cn, action)
+        next_state, reward = cn.get_state_reward(s, action)
         next_state = handle_fall_off(next_state, reward)  # Handle fall off
         next_state_idx = state_to_index(next_state)
 
