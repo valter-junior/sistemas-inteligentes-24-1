@@ -11,11 +11,11 @@ num_episodes = 1000
 
 # Initialize Q-table
 num_states = 24 * 4  # 24 platforms * 4 directions
-num_actions = 5  # jump, up, down, left, right
+num_actions = 3  # jump, rotate left, rotate right
 Q_table = np.zeros((num_states, num_actions))
 
 # Action mapping
-actions = ["jump", "up", "down", "left", "right"]
+actions = ["jump", "rotate left", "rotate right"]
 
 # Function to convert state binary vector to integer index
 def state_to_index(state):
@@ -23,13 +23,23 @@ def state_to_index(state):
     direction = int(state[5:], 2)
     return platform * 4 + direction
 
+# Function to handle the state transition if the agent falls off
+def handle_fall_off(state, reward):
+    if reward == -1:
+        platform = 0  # Reset to platform 0
+        direction = state[5:]  # Keep the same direction
+        state = f"{platform:05b}" + direction
+    return state
+
 # Initialize socket connection
 s = cn.connect(2037)
 
 # Training loop
 for episode in range(num_episodes):
     done = False
-    state, _ = s.get_state_reward(s, "reset")  # Initialize state, assuming "reset" action resets the game
+    
+    # Initialize state: platform 0, direction North (00)
+    state = f"{0:05b}" + "00"
     state_idx = state_to_index(state)
 
     while not done:
@@ -40,6 +50,7 @@ for episode in range(num_episodes):
 
         action = actions[action_idx]
         next_state, reward = cn.get_state_reward(cn, action)
+        next_state = handle_fall_off(next_state, reward)  # Handle fall off
         next_state_idx = state_to_index(next_state)
 
         # Q-learning update
@@ -57,6 +68,4 @@ for episode in range(num_episodes):
 
 # Save the Q-table
 np.save("q_table.npy", Q_table)
-
-
  
