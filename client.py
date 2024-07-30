@@ -1,87 +1,73 @@
 import connection as cn
 import numpy as np
-import random
+import random as rd
 
-# Hyperparameters
-alpha = 0.1
-gamma = 0.9
-epsilon = 0.1  # More greedy policy by using a lower epsilon
-
-# Initialize Q-table
-num_states = 24 * 4  # 24 platforms * 4 directions
-num_actions = 3  # left, right, jump
-Q_table = np.zeros((num_states, num_actions))
-
-# Action mapping
-actions = ["left", "right", "jump"]
-
-# Function to convert state binary vector to integer index
-def state_to_index(state):
-    platform = int(state[:5], 2)
-    direction = int(state[5:], 2)
-    return platform * 4 + direction
-
-# Function to check if the goal state is reached
-def check_goal_state(state):
-    platform = int(state[:5], 2)
-    if platform in [13, 23]:
-        return True
-    return False
-
-# Pre-fill Q-table for platform 0
-initial_state_index = state_to_index("0000000")
-for direction in range(1, 4):  # Directions: East, South, West
-    Q_table[initial_state_index + direction, 2] = -100  # Jump leads to fall
-
-# Initialize socket connection
+# Connect to the game server
 s = cn.connect(2037)
 
+# Load the Q-table
+q_table = np.loadtxt(r'C:\Users\Arthur\github\SI\sistemas-inteligentes-24-1\resultado.txt')
+np.set_printoptions(precision=6)
+
+# Define actions
+actions = ["left", "right", "jump"]
+
+# Parameters
+alpha = 0.1
+gamma = 0.99
+epsilon = 0.8  # Initial exploration rate
+
+# Initialize state and reward
+curr_state = 0
+curr_reward = -14
+
+def choose_action(epsilon, actions, curr_state):
+    if rd.random() < epsilon:
+        action = actions[rd.randint(0, 2)]
+        print(f'Ação aleatória escolhida para o estado {curr_state}: {action}')
+    else:
+        number = np.argmax(q_table[curr_state])
+        action = actions[number]
+        print(f'Melhor ação escolhida para o estado {curr_state}: {action}')
+    return action
+
+def bellman_equation(r, s_prime, gamma):
+    max_q_prime = np.max(q_table[s_prime])
+    pontos = r + gamma * max_q_prime
+    return pontos
+
 # Training loop
-num_episodes = 1000
-for episode in range(num_episodes):
-    print('episode #',episode)
-    done = False
+while True:
+    action = choose_action(epsilon, actions, curr_state)
     
-    # Initialize state: platform 0, direction North (00)
-    state = f"{0:05b}" + "00"
-    state_idx = state_to_index(state)
+    # Decay epsilon
+    if epsilon > 0.1:
+        epsilon -= 0.001
+    print(f'epsilon: {epsilon}')
+    
+    # Map action to column
+    if action == "left":
+        col_action = 0
+    elif action == "right":
+        col_action = 1
+    else:
+        col_action = 2
 
-    while not done:
-        if random.uniform(0, 1) < epsilon:
-            action_idx = random.randint(0, num_actions - 1)  # Explore
-        else:
-            action_idx = np.argmax(Q_table[state_idx])  # Exploit: Select action with highest Q-value
-        
-        # Avoid jump if it leads to falling off
-        if action_idx == 2 and Q_table[state_idx, action_idx] == -100:
-            action_idx = np.random.choice([0, 1])  # Choose either left or right
-
-        action = actions[action_idx]
-        
-        # Get next state and reward from the server
-        next_state, reward = cn.get_state_reward(s, action)
-        
-        # Check if agent has fallen off
-        if reward == -100:
-            next_state_idx = state_to_index("0000000")
-            done = True  # End the episode
-        
-        # Check if goal state is reached
-        elif check_goal_state(next_state):
-            reward = 100  # High reward for reaching goal
-            next_state_idx = state_to_index(next_state)
-            done = True
-        else:
-            next_state_idx = state_to_index(next_state)
-
-        # Q-learning update
-        Q_table[state_idx, action_idx] = (1 - alpha) * Q_table[state_idx, action_idx] + alpha * (
-            reward + gamma * np.max(Q_table[next_state_idx])
-        )
-        
-        # Update state for next iteration
-        state_idx = next_state_idx
-        state = next_state
-
-# Save the Q-table
-np.save("q_table.npy", Q_table)
+    # Get next state and reward from the server
+    state, reward = cn.get_state_reward(s, action)
+    print(f'Action: {action}, Reward: {reward}, Next State: {state}')
+    
+    # Process state
+    state = state[2:]
+    next_state = int(state, 2)
+    
+    # Update Q-table
+    print(f'Valor anterior dessa ação: {q_table[curr_state][col_action]}')
+    q_table[curr_state][col_action] += alpha * (bellman_equation(reward, next_state, gamma) - q_table[curr_state][col_action])
+    
+    # Update current state and reward
+    curr_state = next_state
+    curr_reward = reward
+    
+    # Save the Q-table
+    np.savetxt(r'C:\Users\Arthur\github\SI\sistemas-inteligentes-24-1\resultado.txt', q_table, fmt="%f")
