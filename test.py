@@ -1,11 +1,12 @@
 import connection as cn
 import numpy as np
 import random
+import socket
 
 # Hyperparameters
 alpha = 0.1
 gamma = 0.9
-epsilon = 0.1  # More greedy policy by using a lower epsilon
+epsilon = 0.1  # Exploration rate for initial exploration
 
 # Initialize Q-table
 num_states = 24 * 4  # 24 platforms * 4 directions
@@ -20,6 +21,12 @@ def state_to_index(state):
     platform = int(state[:5], 2)
     direction = int(state[5:], 2)
     return platform * 4 + direction
+
+# Function to convert index back to state binary vector
+def index_to_state(index):
+    platform = index // 4
+    direction = index % 4
+    return f"{platform:05b}{direction:02b}"
 
 # Function to check if the goal state is reached
 def check_goal_state(state):
@@ -39,7 +46,6 @@ s = cn.connect(2037)
 # Training loop
 num_episodes = 1000
 for episode in range(num_episodes):
-    print('episode #',episode)
     done = False
     
     # Initialize state: platform 0, direction North (00)
@@ -47,14 +53,10 @@ for episode in range(num_episodes):
     state_idx = state_to_index(state)
 
     while not done:
-        if random.uniform(0, 1) < epsilon:
-            action_idx = random.randint(0, num_actions - 1)  # Explore
+        if Q_table[state_idx, 2] == 0:  # If 'jump' Q-value is zero, explore it
+            action_idx = 2  # Choose 'jump'
         else:
             action_idx = np.argmax(Q_table[state_idx])  # Exploit: Select action with highest Q-value
-        
-        # Avoid jump if it leads to falling off
-        if action_idx == 2 and Q_table[state_idx, action_idx] == -100:
-            action_idx = np.random.choice([0, 1])  # Choose either left or right
 
         action = actions[action_idx]
         
