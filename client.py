@@ -41,8 +41,8 @@ while True:
     action = choose_action(epsilon, actions, curr_state)
     
     # Decay epsilon
-    if epsilon > 0.4:
-        epsilon -= 0.0001
+    if epsilon > 0.1:
+        epsilon -= 0.001
     print(f'epsilon: {epsilon}')
     
     # Map action to column
